@@ -1,0 +1,66 @@
+[
+  {
+    "timestamp": "2026-05-10 15:41:56",
+    "particles": 0,
+    "size": 0.0,
+    "status": "Clean",
+    "source": "image_analysis",
+    "dominant": "\u2014"
+  },
+  {
+    "timestamp": "2026-05-10 15:43:20",
+    "particles": 0,
+    "size": 0.0,
+    "status": "Clean",
+    "source": "image_analysis",
+    "dominant": "\u2014"
+  },
+  {
+    "timestamp": "2026-05-10 15:44:17",
+    "particles": 0,
+    "size": 0.0,
+    "status": "Clean",
+    "source": "image_analysis",
+    "dominant": "\u2014"
+  },
+  {
+    "timestamp": "2026-05-10 15:52:17",
+    "particles": 0,
+    "size": 0.0,
+    "status": "Clean",
+    "source": "image_analysis",
+    "dominant": "\u2014"
+  },
+  {
+    "timestamp": "2026-05-10 15:53:46",
+    "particles": 39,
+    "size": 259.8,
+    "status": "High",
+    "source": "image_analysis",
+    "dominant": "Fragment"
+  },
+  {
+    "timestamp": "2026-05-10 15:56:08",
+    "particles": 0,
+    "size": 0.0,
+    "status": "Clean",
+    "source": "image_analysis",
+    "dominant": "\u2014"
+  },
+  {
+    "timestamp": "2026-05-10 15:56:19",
+    "particles": 0,
+    "size": 0.0,
+    "status": "Clean",
+    "source": "image_analysis",
+    "dominant": "\u2014"
+  },
+  {
+    "timestamp": "2026-05-10 15:56:44",
+    "particles": 46,
+    "size": 336.4,
+    "status": "High",
+    "source": "image_analysis",
+    "dominant": "Fragment"
+  }
+]
