@@ -1,0 +1,13 @@
+{
+  "global_mean_brightness": 23.17,
+  "global_std_brightness": 14.25,
+  "global_pct95_brightness": 46.28,
+  "global_auto_thresh": 51.67,
+  "particle_threshold": 80.0,
+  "clahe_clip_limit": 6.0,
+  "min_contour_area_px": 6,
+  "max_contour_area_px": 6021.0,
+  "avg_image_area_px": 301057.0,
+  "images_analyzed": 577,
+  "inner_radius_ratio": 0.85
+}

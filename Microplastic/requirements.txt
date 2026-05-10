@@ -1,0 +1,38 @@
+# ══════════════════════════════════════════════════════════════════════
+# Microplastic Detection Dashboard — Python dependencies
+# ══════════════════════════════════════════════════════════════════════
+#
+# ENVIRONMENT: Conda 'microplastic' (Python 3.10)
+#   D:\Miniconda3\envs\microplastic\python.exe
+#
+# To install everything into the correct env, run:
+#   D:\Miniconda3\envs\microplastic\python.exe -m pip install -r requirements.txt
+#
+# DO NOT use plain `pip install` — it may target the wrong Python.
+# ══════════════════════════════════════════════════════════════════════
+
+# ── Web framework ─────────────────────────────────────────────────────
+flask>=2.3,<4
+flask-socketio>=5.3
+
+# ── Computer vision ───────────────────────────────────────────────────
+opencv-python>=4.8
+numpy>=1.24,<2
+
+# ── Machine learning (YOLOv8) ─────────────────────────────────────────
+# PyTorch is installed via pip inside the Conda env.
+# Run separately if needed:
+#   pip install torch torchvision torchaudio
+ultralytics>=8.0
+
+# ── Image processing ──────────────────────────────────────────────────
+Pillow>=10.0
+
+# ── Data / utilities ──────────────────────────────────────────────────
+pandas>=2.0
+requests>=2.31
+pyserial>=3.5
+scipy>=1.11
+
+# ── Firebase (optional — comment out if not using cloud sync) ─────────
+firebase-admin>=6.2

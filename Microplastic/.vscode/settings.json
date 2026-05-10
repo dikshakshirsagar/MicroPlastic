@@ -1,0 +1,36 @@
+{
+  // ── Python interpreter ──────────────────────────────────────────────
+  // Points directly at the Conda 'microplastic' env — no activation needed.
+  "python.defaultInterpreterPath": "D:\\Miniconda3\\envs\\microplastic\\python.exe",
+  "python.pythonPath":             "D:\\Miniconda3\\envs\\microplastic\\python.exe",
+
+  // ── Terminal: launch with the Conda env already on PATH ─────────────
+  "terminal.integrated.env.windows": {
+    "PATH": "D:\\Miniconda3\\envs\\microplastic;D:\\Miniconda3\\envs\\microplastic\\Scripts;D:\\Miniconda3\\envs\\microplastic\\Library\\bin;${env:PATH}",
+    "CONDA_DEFAULT_ENV": "microplastic",
+    "CONDA_PREFIX": "D:\\Miniconda3\\envs\\microplastic"
+  },
+
+  // ── Terminal: always open in the project root ────────────────────────
+  "terminal.integrated.cwd": "${workspaceFolder}",
+
+  // ── Linting / formatting use the same env ────────────────────────────
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": false,
+
+  // ── File associations ─────────────────────────────────────────────────
+  "files.associations": {
+    "*.yaml": "yaml",
+    "*.json": "json"
+  },
+
+  // ── Exclude noise from explorer ───────────────────────────────────────
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/venv311": true,
+    "**/.venv": true,
+    "**/runs": true
+  }
+}

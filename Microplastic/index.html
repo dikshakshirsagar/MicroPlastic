@@ -1,0 +1,375 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microplastic Detection Dashboard</title>
+    <meta name="description" content="Real-time IoT dashboard for microplastic detection in water using ESP32 and optical sensor">
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Mobile close button inside sidebar -->
+        <button class="sidebar-close-btn" id="sidebarCloseBtn" onclick="toggleSidebar()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                        <circle cx="8" cy="10" r="1.5" fill="currentColor"/>
+                        <circle cx="15" cy="8" r="1" fill="currentColor"/>
+                        <circle cx="12" cy="14" r="2" fill="currentColor"/>
+                        <circle cx="16" cy="13" r="0.8" fill="currentColor"/>
+                        <circle cx="9" cy="16" r="1.2" fill="currentColor"/>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>µPlastic</h1>
+                    <span>Detection System</span>
+                </div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="nav-item active" id="navDashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Dashboard
+            </a>
+            <a href="/image-analysis" class="nav-item" id="navImageAnalysis">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Image Analysis
+            </a>
+            <a href="/export" class="nav-item" id="navExport">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Data Export
+            </a>
+            <a href="/settings" class="nav-item" id="navSettings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Settings
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="connection-status">
+                <span class="status-dot" id="connectionDot"></span>
+                <span id="connectionText">Connecting…</span>
+            </div>
+            <div class="user-profile" id="userProfile">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-info-sidebar">
+                    <span class="user-name" id="userName">User</span>
+                    <span class="user-email" id="userEmail">user@email.com</span>
+                </div>
+                <button class="logout-btn-sidebar" onclick="handleLogout()" title="Sign Out">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- High Pollution Alert Banner -->
+        <div id="alertBanner" class="alert-banner hidden">
+            <div class="alert-content">
+                <span class="alert-icon">⚠️</span>
+                <span class="alert-text">HIGH POLLUTION ALERT — Particle count exceeds safe threshold!</span>
+                <button class="alert-close" onclick="dismissAlert()">✕</button>
+            </div>
+        </div>
+
+        <!-- Sidebar Overlay (mobile) -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleSidebar()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <h2>Dashboard</h2>
+                <span class="breadcrumb">Real-time Monitoring</span>
+            </div>
+            <div class="topbar-right">
+                <div class="last-updated">
+                    <span>Last update:</span>
+                    <span id="lastUpdate">--:--:--</span>
+                </div>
+                <div class="topbar-badge" id="espStatusBadge">
+                    <span class="badge-dot"></span>
+                    ESP32
+                </div>
+                <button class="topbar-logout" onclick="handleLogout()" title="Sign Out">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <section class="stats-grid">
+            <div class="stat-card" id="cardParticles">
+                <div class="stat-icon particles-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="8" cy="10" r="1.5" fill="currentColor"/><circle cx="14" cy="8" r="1" fill="currentColor"/><circle cx="11" cy="15" r="2" fill="currentColor"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Particles</span>
+                    <span class="stat-value" id="particleCount">0</span>
+                    <span class="stat-trend" id="particleTrend">
+                        <span class="trend-arrow">—</span> No data
+                    </span>
+                </div>
+            </div>
+            <div class="stat-card" id="cardSize">
+                <div class="stat-icon size-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3H3v18h18V3z"/><path d="M9 3v18"/><path d="M3 9h18"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Average Size</span>
+                    <span class="stat-value"><span id="avgSize">0</span> <small>µm</small></span>
+                    <span class="stat-trend" id="sizeTrend">
+                        <span class="trend-arrow">—</span> No data
+                    </span>
+                </div>
+            </div>
+            <div class="stat-card" id="cardStatus">
+                <div class="stat-icon status-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Water Quality</span>
+                    <span class="stat-value status-text" id="waterStatus">—</span>
+                    <span class="stat-trend" id="statusDescription">Awaiting data</span>
+                </div>
+            </div>
+            <div class="stat-card" id="cardDetection">
+                <div class="stat-icon detection-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Detection Status</span>
+                    <span class="stat-value" id="detectionStatus">Idle</span>
+                    <span class="stat-trend" id="detectionInfo">System standby</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Grid: Chart + Camera -->
+        <section class="dashboard-grid">
+            <!-- Chart Panel -->
+            <div class="panel chart-panel">
+                <div class="panel-header">
+                    <h3>Particle Count – Real-time</h3>
+                    <div class="panel-actions">
+                        <button class="btn-icon" title="Clear data" onclick="clearChart()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="particleChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Camera Panel -->
+            <div class="panel camera-panel">
+                <div class="panel-header">
+                    <h3>ESP32-CAM Live Feed</h3>
+                    <div class="panel-actions">
+                        <span class="live-badge" id="liveBadge">● LIVE</span>
+                    </div>
+                </div>
+                <div class="camera-container">
+                    <img id="cameraFeed" src="" alt="ESP32-CAM Stream" onerror="handleCameraError()">
+                    <div class="camera-overlay" id="cameraOverlay">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/></svg>
+                        <p>Camera feed unavailable</p>
+                        <small>Configure your ESP32-CAM stream URL below</small>
+                        <div class="camera-url-input">
+                            <input type="text" id="cameraUrl" placeholder="http://ESP32_IP:81/stream" value="">
+                            <button onclick="connectCamera()">Connect</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Bottom Section: History Table -->
+        <section class="panel history-panel">
+            <div class="panel-header">
+                <h3>Detection History</h3>
+                <span class="record-count" id="recordCount">0 records</span>
+            </div>
+            <div class="table-container">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Particles</th>
+                            <th>Size (µm)</th>
+                            <th>Status</th>
+                            <th>Alert</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <tr class="empty-row">
+                            <td colspan="5">No data received yet. Waiting for ESP32…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Features Showcase — Scrolling Cards -->
+        <section class="features-section">
+            <div class="features-header">
+                <h3>System Capabilities</h3>
+                <p>Powered by ESP32 &amp; Optical Sensing Technology</p>
+            </div>
+            <div class="features-track-wrapper">
+                <div class="features-track">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <h4>Real-time Monitoring</h4>
+                        <p>ESP32 optical sensor detects microplastic particles with 2-second refresh intervals</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                        </div>
+                        <h4>Water Quality Analysis</h4>
+                        <p>Automated classification into Good, Moderate, or Contaminated based on particle thresholds</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0"/></svg>
+                        </div>
+                        <h4>Live Camera Feed</h4>
+                        <p>ESP32-CAM integration for real-time visual inspection of water samples</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </div>
+                        <h4>Smart Alerts</h4>
+                        <p>Instant warning banners when pollution levels exceed safe thresholds</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        </div>
+                        <h4>Data Visualization</h4>
+                        <p>Interactive Chart.js graphs with gradient fills and trend analysis indicators</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>
+                        </div>
+                        <h4>IoT Connected</h4>
+                        <p>WiFi-enabled ESP32 microcontroller with HTTP data transmission protocol</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <h4>History Tracking</h4>
+                        <p>Comprehensive detection logs with up to 500 readings and JSON persistence</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                        </div>
+                        <h4>Low Power Design</h4>
+                        <p>Energy-efficient embedded system designed for continuous 24/7 water monitoring</p>
+                    </div>
+                    <!-- Duplicate set for seamless loop -->
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <h4>Real-time Monitoring</h4>
+                        <p>ESP32 optical sensor detects microplastic particles with 2-second refresh intervals</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                        </div>
+                        <h4>Water Quality Analysis</h4>
+                        <p>Automated classification into Good, Moderate, or Contaminated based on particle thresholds</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0"/></svg>
+                        </div>
+                        <h4>Live Camera Feed</h4>
+                        <p>ESP32-CAM integration for real-time visual inspection of water samples</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </div>
+                        <h4>Smart Alerts</h4>
+                        <p>Instant warning banners when pollution levels exceed safe thresholds</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        </div>
+                        <h4>Data Visualization</h4>
+                        <p>Interactive Chart.js graphs with gradient fills and trend analysis indicators</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>
+                        </div>
+                        <h4>IoT Connected</h4>
+                        <p>WiFi-enabled ESP32 microcontroller with HTTP data transmission protocol</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <h4>History Tracking</h4>
+                        <p>Comprehensive detection logs with up to 500 readings and JSON persistence</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                        </div>
+                        <h4>Low Power Design</h4>
+                        <p>Energy-efficient embedded system designed for continuous 24/7 water monitoring</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><circle cx="8" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/><circle cx="12" cy="14" r="2" fill="currentColor"/></svg>
+                    <span>Microplastic Detection System</span>
+                </div>
+                <div class="footer-info">
+                    <span>ESP32 + Flask + Firebase</span>
+                    <span class="footer-dot"></span>
+                    <span>Final Year Project</span>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <script src="static/script.js"></script>
+
+</body>
+</html>

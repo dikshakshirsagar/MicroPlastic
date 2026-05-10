@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Analysis — µPlastic Detection</title>
+<meta name="description" content="Upload microscope images for OpenCV-based microplastic particle detection and classification">
+<link rel="stylesheet" href="static/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<style>
+.ia-page-wrap{padding:0 32px 40px;}
+.ia-hero{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;}
+.ia-panel{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius);overflow:hidden;animation:fadeSlideUp .5s ease-out both;}
+.ia-panel-hd{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border-color);}
+.ia-panel-hd h3{font-size:.95rem;font-weight:600;margin:0;}
+.ia-panel-body{padding:24px;}
+.ia-badge-pill{background:linear-gradient(135deg,#3b82f6,#06b6d4);color:#fff;font-size:.65rem;font-weight:700;letter-spacing:.06em;padding:.22rem .6rem;border-radius:99px;text-transform:uppercase;}
+#iaDropZone{border:2px dashed var(--border-color);border-radius:12px;padding:3rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;}
+#iaDropZone.drag-over{border-color:var(--accent-blue);background:rgba(59,130,246,.05);}
+#iaDropZone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.ia-drop-icon{width:52px;height:52px;margin:0 auto 1rem;color:var(--accent-cyan);opacity:.8;}
+.ia-drop-text{color:var(--text-secondary);font-size:.875rem;line-height:1.6;}
+.ia-drop-text strong{color:var(--text-primary);}
+#iaOriginalWrap{margin-top:1rem;display:none;}
+#iaOriginalWrap img{width:100%;border-radius:10px;border:1px solid var(--border-color);max-height:320px;object-fit:contain;background:#000;}
+.ia-img-label{font-size:.72rem;color:var(--text-muted);text-align:center;margin-top:.4rem;}
+#iaAnalyseBtn{width:100%;margin-top:1rem;padding:.8rem;background:var(--gradient-blue);color:#fff;font-weight:700;font-size:.9rem;border:none;border-radius:10px;cursor:pointer;transition:opacity .2s,transform .1s;display:none;}
+#iaAnalyseBtn:hover{opacity:.88;}
+#iaAnalyseBtn:active{transform:scale(.98);}
+#iaAnalyseBtn:disabled{opacity:.4;cursor:not-allowed;}
+#iaAnalyseBtn .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:.4rem;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#iaErrorMsg{display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;border-radius:8px;padding:.65rem 1rem;font-size:.82rem;margin-top:.75rem;}
+#iaResultsPlaceholder{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:360px;color:var(--text-muted);text-align:center;gap:.6rem;}
+#iaResultsPlaceholder svg{opacity:.3;}
+#iaResultsContent{display:none;}
+#iaAnnotatedImg{width:100%;border-radius:10px;border:1px solid var(--border-color);max-height:320px;object-fit:contain;background:#000;}
+#iaStatusBadge{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .85rem;border-radius:99px;font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-top:.8rem;}
+#iaStatusBadge.clean{background:rgba(6,182,212,.12);color:var(--accent-cyan);}
+#iaStatusBadge.good{background:rgba(16,185,129,.12);color:var(--accent-green);}
+#iaStatusBadge.moderate{background:rgba(245,158,11,.12);color:var(--accent-yellow);}
+#iaStatusBadge.contaminated{background:rgba(239,68,68,.12);color:var(--accent-red);}
+.ia-badge-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.5s ease-in-out infinite;}
+.ia-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:1rem;}
+.ia-stat{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;padding:.8rem 1rem;text-align:center;}
+.ia-stat-val{display:block;font-size:1.5rem;font-weight:800;color:var(--accent-cyan);line-height:1;}
+.ia-stat-lbl{display:block;font-size:.68rem;color:var(--text-muted);margin-top:.3rem;text-transform:uppercase;letter-spacing:.05em;}
+.ia-shape-section{margin-top:1.25rem;}
+.ia-shape-title{font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem;}
+.ia-shape-bar{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--border-color);}
+.ia-shape-bar span{transition:width .5s ease;}
+.seg-fragment{background:#3b82f6;}
+.seg-fiber{background:#06b6d4;}
+.seg-film{background:#f59e0b;}
+.ia-shape-legend{display:flex;gap:1rem;margin-top:.55rem;flex-wrap:wrap;}
+.ia-shape-legend span{display:flex;align-items:center;gap:.35rem;font-size:.73rem;color:var(--text-secondary);}
+.ia-shape-legend .dot{width:9px;height:9px;border-radius:50%;}
+.ia-table-wrap{margin-top:1.25rem;max-height:220px;overflow-y:auto;border-radius:8px;border:1px solid var(--border-color);}
+.ia-table{width:100%;border-collapse:collapse;font-size:.78rem;}
+.ia-table thead th{position:sticky;top:0;background:var(--bg-secondary);color:var(--text-muted);font-weight:600;padding:.55rem .75rem;text-align:left;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border-color);}
+.ia-table tbody td{padding:.45rem .75rem;color:var(--text-primary);border-bottom:1px solid var(--border-color);}
+.ia-table tbody tr:last-child td{border-bottom:none;}
+.ia-table tbody tr:hover td{background:var(--bg-card-hover);}
+.shape-pill{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .55rem;border-radius:99px;font-size:.7rem;font-weight:600;}
+.shape-pill.Fragment{background:rgba(59,130,246,.12);color:#3b82f6;}
+.shape-pill.Fiber{background:rgba(6,182,212,.12);color:#06b6d4;}
+.shape-pill.Film{background:rgba(245,158,11,.12);color:#f59e0b;}
+@media(max-width:900px){.ia-hero{grid-template-columns:1fr;}.ia-page-wrap{padding:0 16px 32px;}}
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+  <button class="sidebar-close-btn" id="sidebarCloseBtn" onclick="toggleSidebar()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="sidebar-header">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><circle cx="8" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/><circle cx="12" cy="14" r="2" fill="currentColor"/></svg>
+      </div>
+      <div class="logo-text"><h1>µPlastic</h1><span>Detection System</span></div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a href="/image-analysis" class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Image Analysis
+    </a>
+    <a href="/export" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Data Export
+    </a>
+    <a href="/settings" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="connection-status">
+      <span class="status-dot" id="connectionDot"></span>
+      <span id="connectionText">Connecting…</span>
+    </div>
+    <div class="user-profile" id="userProfile">
+      <div class="user-avatar" id="userAvatar">U</div>
+      <div class="user-info-sidebar">
+        <span class="user-name" id="userName">User</span>
+        <span class="user-email" id="userEmail">user@email.com</span>
+      </div>
+      <button class="logout-btn-sidebar" onclick="handleLogout()" title="Sign Out">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<main class="main-content">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleSidebar()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <h2>Image Analysis</h2>
+      <span class="breadcrumb">OpenCV Microplastic Detection</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-badge" id="espStatusBadge"><span class="badge-dot"></span>ESP32</div>
+      <button class="topbar-logout" onclick="handleLogout()" title="Sign Out">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="ia-page-wrap">
+    <div class="ia-hero">
+      <!-- LEFT: Upload -->
+      <div class="ia-panel">
+        <div class="ia-panel-hd">
+          <h3>Upload Microscope Image</h3>
+          <span class="ia-badge-pill">OpenCV</span>
+        </div>
+        <div class="ia-panel-body">
+          <div id="iaDropZone">
+            <input type="file" id="iaFileInput" accept=".jpg,.jpeg,.png,.bmp,.tiff,.tif">
+            <svg class="ia-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p class="ia-drop-text"><strong>Drag &amp; drop</strong> an image here<br>or click to browse<br>
+            <span style="font-size:.75rem;color:var(--text-muted)">JPG · PNG · BMP · TIFF</span></p>
+          </div>
+          <div id="iaOriginalWrap">
+            <img id="iaOriginalImg" src="" alt="Uploaded image preview">
+            <p class="ia-img-label" id="iaFileName">—</p>
+          </div>
+          <div id="iaErrorMsg"></div>
+          <button id="iaAnalyseBtn" onclick="runAnalysis()">Analyse Image</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: Results -->
+      <div class="ia-panel">
+        <div class="ia-panel-hd">
+          <h3>Detection Results</h3>
+          <span id="iaAnalysedAt" style="font-size:.72rem;color:var(--text-muted)"></span>
+        </div>
+        <div class="ia-panel-body">
+          <div id="iaResultsPlaceholder">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <p>Upload an image and click<br><strong style="color:var(--text-primary)">Analyse Image</strong> to begin</p>
+          </div>
+          <div id="iaResultsContent">
+            <img id="iaAnnotatedImg" src="" alt="Annotated result">
+            <div id="iaStatusBadge"><span class="ia-badge-dot"></span><span id="iaStatusText">—</span></div>
+            <div class="ia-stats-row">
+              <div class="ia-stat"><span class="ia-stat-val" id="iaTotalParticles">0</span><span class="ia-stat-lbl">Particles</span></div>
+              <div class="ia-stat"><span class="ia-stat-val" id="iaAvgSize">0</span><span class="ia-stat-lbl">Avg Size (µm)</span></div>
+              <div class="ia-stat"><span class="ia-stat-val" id="iaDominantShape">—</span><span class="ia-stat-lbl">Dominant</span></div>
+            </div>
+            <div class="ia-shape-section">
+              <p class="ia-shape-title">Shape Breakdown</p>
+              <div class="ia-shape-bar">
+                <span class="seg-fragment" id="iaSegFragment" style="width:0%"></span>
+                <span class="seg-fiber" id="iaSegFiber" style="width:0%"></span>
+                <span class="seg-film" id="iaSegFilm" style="width:0%"></span>
+              </div>
+              <div class="ia-shape-legend">
+                <span><span class="dot" style="background:#3b82f6"></span>Fragment <strong id="iaCntFragment" style="color:var(--text-primary)">0</strong></span>
+                <span><span class="dot" style="background:#06b6d4"></span>Fiber <strong id="iaCntFiber" style="color:var(--text-primary)">0</strong></span>
+                <span><span class="dot" style="background:#f59e0b"></span>Film <strong id="iaCntFilm" style="color:var(--text-primary)">0</strong></span>
+              </div>
+            </div>
+            <div class="ia-table-wrap">
+              <table class="ia-table">
+                <thead><tr><th>#</th><th>Size (µm)</th><th>Shape</th><th>Circularity</th><th>Area (px²)</th></tr></thead>
+                <tbody id="iaParticleTableBody">
+                  <tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:1rem">No data yet</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="static/script.js"></script>
+<script>
+(function(){
+  let selectedFile = null;
+  const dropZone = document.getElementById('iaDropZone');
+  const fileInput = document.getElementById('iaFileInput');
+
+  fileInput.addEventListener('change', function(){ if(this.files[0]) handleFile(this.files[0]); });
+  dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+  function handleFile(file){
+    if(!file.name.match(/\.(jpg|jpeg|png|bmp|tiff|tif)$/i)){
+      showError('Unsupported file. Use JPG, PNG, BMP, or TIFF.'); return;
+    }
+    selectedFile = file; clearError(); hideResults();
+    const reader = new FileReader();
+    reader.onload = e=>{
+      document.getElementById('iaOriginalImg').src = e.target.result;
+      document.getElementById('iaOriginalWrap').style.display = 'block';
+      document.getElementById('iaFileName').textContent = file.name + ' (' + fmtBytes(file.size) + ')';
+      document.getElementById('iaAnalyseBtn').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  window.runAnalysis = function(){
+    if(!selectedFile) return;
+    clearError();
+    const btn = document.getElementById('iaAnalyseBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span> Analysing…';
+    const fd = new FormData();
+    fd.append('image', selectedFile);
+    fetch('/analyze-image',{method:'POST',body:fd})
+      .then(r=>r.json())
+      .then(d=>{ if(!d.success){showError(d.error||'Analysis failed'); return;} renderResults(d); })
+      .catch(e=>showError('Network error: '+e.message))
+      .finally(()=>{ btn.disabled=false; btn.innerHTML='Analyse Image'; });
+  };
+
+  function renderResults(d){
+    document.getElementById('iaAnnotatedImg').src = 'data:image/jpeg;base64,'+d.annotated_image;
+    document.getElementById('iaAnalysedAt').textContent = d.analyzed_at||'';
+    const badge = document.getElementById('iaStatusBadge');
+    badge.className = '';
+    badge.classList.add((d.status||'clean').toLowerCase().replace(' ',''));
+    document.getElementById('iaStatusText').textContent = d.status||'—';
+    document.getElementById('iaTotalParticles').textContent = d.total_particles;
+    document.getElementById('iaAvgSize').textContent = d.avg_size_um;
+    document.getElementById('iaDominantShape').textContent = d.dominant_shape||'—';
+    const c = d.shape_counts||{Fragment:0,Fiber:0,Film:0};
+    const tot = (c.Fragment||0)+(c.Fiber||0)+(c.Film||0)||1;
+    document.getElementById('iaSegFragment').style.width = (c.Fragment/tot*100).toFixed(1)+'%';
+    document.getElementById('iaSegFiber').style.width = (c.Fiber/tot*100).toFixed(1)+'%';
+    document.getElementById('iaSegFilm').style.width = (c.Film/tot*100).toFixed(1)+'%';
+    document.getElementById('iaCntFragment').textContent = c.Fragment||0;
+    document.getElementById('iaCntFiber').textContent = c.Fiber||0;
+    document.getElementById('iaCntFilm').textContent = c.Film||0;
+    const tbody = document.getElementById('iaParticleTableBody');
+    if(!d.particles||!d.particles.length){
+      tbody.innerHTML='<tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:.8rem">No particles detected</td></tr>';
+    } else {
+      tbody.innerHTML = d.particles.map(p=>`<tr>
+        <td style="color:var(--text-muted)">${p.id}</td>
+        <td>${p.size_um}</td>
+        <td><span class="shape-pill ${p.shape}">${p.shape}</span></td>
+        <td>${p.circularity}</td>
+        <td>${p.area_px}</td>
+      </tr>`).join('');
+    }
+    document.getElementById('iaResultsPlaceholder').style.display='none';
+    document.getElementById('iaResultsContent').style.display='block';
+  }
+
+  function showError(msg){ const e=document.getElementById('iaErrorMsg'); e.textContent='⚠ '+msg; e.style.display='block'; }
+  function clearError(){ document.getElementById('iaErrorMsg').style.display='none'; }
+  function hideResults(){ document.getElementById('iaResultsPlaceholder').style.display='flex'; document.getElementById('iaResultsContent').style.display='none'; }
+  function fmtBytes(b){ if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+})();
+</script>
+</body>
+</html>

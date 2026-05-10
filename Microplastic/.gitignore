@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# Data logs
+data_log.json
+
+# Environment
+.env
+venv311/
+.venv/
+
+# Setup guide
+.FIREBASE_SETUP.md

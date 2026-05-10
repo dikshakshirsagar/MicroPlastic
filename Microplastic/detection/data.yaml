@@ -1,0 +1,4 @@
+train: C:\Users\Nitya Kalyani\Desktop\dataset\train
+val:   C:\Users\Nitya Kalyani\Desktop\dataset\valid
+nc: 1
+names: ['microplastic']
