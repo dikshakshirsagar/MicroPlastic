@@ -3,101 +3,148 @@
 #include <ArduinoJson.h>
 
 // ── WiFi Credentials ─────────────────────────────
-const char* ssid     = "Realme 11 Pro+ 5G";      // ← Edit
-const char* password = "11092005";  // ← Edit
+const char* ssid       = "YOUR_WIFI_SSID";           // Your WiFi name
+const char* password   = "YOUR_WIFI_PASSWORD";      // Your WiFi password
 
 // ── Flask Server URL ─────────────────────────────
-const char* serverUrl = "http://192.168.0.101:5000/data";  // ← Edit PC IP
+const char* serverUrl  = "http://<YOUR_PC_IP>:5000/api/sensor-data";
 
 // ── Sensor Pin & Calibration ─────────────────────
-const int sensorPin = 34;
-const int clearRef  = 3200;   // Clear water reading
-const int dirtyRef  = 1200;   // Dirty water reading
+const int sensorPin   = 34;
+int lastState         = HIGH;         // ← from your working code
+int particleCount     = 0;            // ← from your working code
+unsigned long lastEventTime = 0;      // ← from your working code
+unsigned long debounceMs    = 50;     // ← from your working code
 
-// ── Timers ────────────────────────────────────────
-unsigned long lastPrint = 0;
-unsigned long lastSend  = 0;
-int readingCount = 0;
+// ═══════════════════════════════════════════════
+//  TIMING
+// ═══════════════════════════════════════════════
+unsigned long lastSend       = 0;
+unsigned long lastWifiCheck  = 0;
+const long sendInterval      = 2000;
+const long wifiCheckInterval = 5000;
 
-void setup() {
-  Serial.begin(115200);
-  delay(2000);
+bool serverReachable = false;
 
-  Serial.println("\n=== MICROPLASTICS SENSOR READY ===");
-  Serial.println("LDR GPIO34 | Laser manual ON");
-  Serial.printf("Calib: Clear=%d | Dirty=%d\n", clearRef, dirtyRef);
-
-  // Connect to WiFi
+// ═══════════════════════════════════════════════
+//  WiFi Connect
+// ═══════════════════════════════════════════════
+void connectWiFi() {
+  Serial.printf("\nConnecting to WiFi: %s ", ssid);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
     delay(500);
     Serial.print(".");
+    attempts++;
   }
-  Serial.println("\n✓ WiFi Connected: " + WiFi.localIP().toString());
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n✓ WiFi Connected!");
+    Serial.println("  IP     : " + WiFi.localIP().toString());
+    Serial.println("  Signal : " + String(WiFi.RSSI()) + " dBm");
+    Serial.println("  Server : " + String(serverUrl));
+  } else {
+    Serial.println("\n✗ WiFi FAILED — running offline.");
+  }
 }
 
+// ═══════════════════════════════════════════════
+//  POST to Flask
+// ═══════════════════════════════════════════════
+bool postToFlask(int count, String state) {
+  if (WiFi.status() != WL_CONNECTED) return false;
+
+  HTTPClient http;
+  http.begin(serverUrl);
+  http.addHeader("Content-Type", "application/json");
+  http.setTimeout(3000);
+
+  JsonDocument doc;
+  doc["count"] = count;
+  doc["state"] = state;
+
+  String json;
+  serializeJson(doc, json);
+
+  int httpCode = http.POST(json);
+  http.end();
+
+  if (httpCode == 200) {
+    serverReachable = true;
+    return true;
+  } else if (httpCode == -1) {
+    Serial.println("  ✗ Server unreachable — is Flask running?");
+    serverReachable = false;
+    return false;
+  } else {
+    Serial.printf("  ✗ HTTP Error: %d\n", httpCode);
+    serverReachable = false;
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  SETUP
+// ═══════════════════════════════════════════════
+void setup() {
+  Serial.begin(115200);
+  pinMode(sensorPin, INPUT);   // ← exact from your working code
+  delay(2000);
+
+  Serial.println("\n========================================");
+  Serial.println("  MICROPLASTICS DETECTION SYSTEM");
+  Serial.println("========================================");
+  connectWiFi();
+  Serial.println("\n[Ready — streaming sensor data...]\n");
+}
+
+// ═══════════════════════════════════════════════
+//  LOOP — sensor logic is IDENTICAL to your
+// ═══════════════════════════════════════════════
 void loop() {
+  int currentState = digitalRead(sensorPin);
 
-  // ── Print to Serial every 500ms ──────────────────
-  if (millis() - lastPrint > 500) {
-    lastPrint = millis();
-
-    int raw = analogRead(sensorPin);
-    int particles = constrain(map(raw, dirtyRef, clearRef, 150, 5), 0, 200);
-    int size_um   = constrain(map(raw, dirtyRef, clearRef, 90, 15), 5, 100);
-
-    String status;
-    if      (raw >= 2600) status = "CLEAN";
-    else if (raw >= 2000) status = "LOW";
-    else if (raw >= 1500) status = "MODERATE";
-    else                  status = "HIGH";
-
-    Serial.printf("| Raw:%4d | P:%3d | Size:%2dμm | %s |\n",
-                  raw, particles, size_um, status.c_str());
-
-    readingCount++;
-    if (readingCount % 4 == 0) {
-      Serial.println("-----------------------------");
+  // ── EXACT logic from your working code ──────
+  if (lastState == HIGH && currentState == LOW) {
+    if (millis() - lastEventTime > debounceMs) {
+      particleCount++;
+      lastEventTime = millis();
+      Serial.print("PARTICLE DETECTED. Count = ");
+      Serial.println(particleCount);
     }
   }
 
-  // ── Send to Flask every 2 seconds ────────────────
-  if (millis() - lastSend > 2000) {
-    lastSend = millis();
+  lastState = currentState;
 
-    int raw = analogRead(sensorPin);
-    int particles = constrain(map(raw, dirtyRef, clearRef, 150, 5), 0, 200);
-    int size_um   = constrain(map(raw, dirtyRef, clearRef, 90, 15), 5, 100);
+  // ── EXACT serial output from your working code
+  if (currentState == HIGH) {
+    Serial.println("STATE: CLEAR");
+  } else {
+    Serial.println("STATE: PARTICLE PRESENT");
+  }
 
-    String status;
-    if      (raw >= 2600) status = "Good";
-    else if (raw >= 2000) status = "Moderate";
-    else if (raw >= 1500) status = "Moderate";
-    else                  status = "Contaminated";
-
-    if (WiFi.status() == WL_CONNECTED) {
-      HTTPClient http;
-      http.begin(serverUrl);
-      http.addHeader("Content-Type", "application/json");
-
-      StaticJsonDocument<200> doc;
-      doc["raw_adc"]   = raw;
-      doc["particles"] = particles;
-      doc["size"]      = size_um;
-      doc["status"]    = status;
-
-      String json;
-      serializeJson(doc, json);
-
-      int code = http.POST(json);
-      if (code == 200) Serial.println("  ✓ Dashboard updated");
-      else             Serial.printf("  ✗ HTTP Error: %d\n", code);
-
-      http.end();
-    } else {
-      Serial.println("  ✗ WiFi disconnected — retrying...");
+  // ── WiFi reconnect check ─────────────────────
+  if (millis() - lastWifiCheck > wifiCheckInterval) {
+    lastWifiCheck = millis();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("⚠ WiFi lost — reconnecting...");
       WiFi.reconnect();
     }
   }
+
+  // ── POST to Flask every 2 seconds ───────────
+  if (millis() - lastSend > sendInterval) {
+    lastSend = millis();
+    String stateStr = (currentState == HIGH) ? "CLEAR" : "PARTICLE PRESENT";
+    bool sent = postToFlask(particleCount, stateStr);
+    if (sent) {
+      Serial.printf("  ✓ Sent → Count:%d | State:%s\n",
+                    particleCount, stateStr.c_str());
+    }
+  }
+
+  delay(100);  // ← exact from your working code
 }
