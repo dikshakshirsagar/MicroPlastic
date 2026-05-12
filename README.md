@@ -200,27 +200,46 @@ Each particle interaction generates a pulse. Features from that pulse are classi
 ## 📁 Project Structure
 
 ```
-MicroPlastic/
+Microplastic/
 │
-├── frontend/
-│   ├── index.html              # Main dashboard page
-│   ├── login.html              # Login / signup page
-│   ├── style.css               # Dark theme UI and layout styling
-│   └── app.js                  # Charts, Firebase auth, API calls
+├── .vscode/                          # VS Code workspace settings
+│   ├── launch.json                   # Debug launch configuration
+│   ├── settings.json                 # Editor settings
+│   └── tasks.json                    # Task runner configuration
 │
-├── backend/
-│   ├── app.py                  # Flask server & REST API endpoints
-│   └── detector.py             # OpenCV microplastic detection logic
+├── detection/                        # Core detection module
+│   ├── microplastic_model/           # Trained ML model files
+│   ├── __init__.py                   # Package initializer
+│   ├── analyze_dataset.py            # Dataset analysis script
+│   ├── auto_label.py                 # Auto-labelling for training data
+│   ├── data.yaml                     # Dataset config for YOLOv8 training
+│   ├── image_detector.py             # Image-based detection logic
+│   ├── particle_analysis.py          # Particle feature analysis
+│   └── thresholds.json               # Detection threshold configuration
 │
-├── ml_model/
-│   ├── model.h5                # Trained TensorFlow classification model
-│   └── train.py                # Model training script
+├── esp32_code/                       # ESP32 hardware firmware
+│   └── esp32_sensor.ino              # ADC sampling + feature extraction + Wi-Fi
 │
-├── esp32/
-│   └── main.ino                # ESP32 firmware: ADC + feature extraction + Wi-Fi
+├── static/                           # Frontend static assets
+│   ├── auth.css                      # Authentication page styles
+│   ├── auth.js                       # Firebase authentication logic
+│   ├── script.js                     # Dashboard interactivity & API calls
+│   └── style.css                     # Main dark-theme UI styles
 │
-├── requirements.txt            # Python dependencies
-└── README.md
+├── .gitignore                        # Git ignore rules
+├── app.py                            # Flask server & all REST API endpoints
+├── export.html                       # Exported detection report (HTML)
+├── image_analysis.html               # Image analysis dashboard page
+├── index.html                        # Main live dashboard page
+├── login.html                        # Login / signup page
+├── README.md                         # Project documentation
+├── requirements.txt                  # Python dependencies
+├── run.bat                           # Windows startup script
+├── run.ps1                           # PowerShell startup script
+├── settings.html                     # User settings page
+├── test_sender.py                    # ESP32 data simulation & testing script
+├── train_model.py                    # ML model training script
+└── yolov8n.pt                        # Pre-trained YOLOv8 nano model weights
 ```
 
 ---
